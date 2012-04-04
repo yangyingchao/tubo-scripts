@@ -1,0 +1,12 @@
+Collection of scripts, contents:
+
+|-- README:                             this file.
+|-- bash
+|   `-- pkg_pack.sh                     packet package.
+`-- python
+    |-- devhelp2_gen.py                 Scan directory to generate devhelp2 files.
+    |-- down_from_page.py               Download all links of a web page.
+    |-- split.py                        Split large text file into small ones.
+    |-- sub_adj.py                      Adjust subtitle of movie.
+    `-- web_scratch.py                  Download all links of a web page, and replace links to local files.
+
