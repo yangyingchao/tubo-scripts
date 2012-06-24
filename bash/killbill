@@ -1,0 +1,4 @@
+#!/bin/bash
+for fn in $(ps aux | grep "C:"|grep -v grep | awk -F " " '{print $2}' ); do
+    kill $fn;
+    done
