@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for pid in `ps aux | grep "[X]code" | awk -F " " '{print $2}'`; do
+for pid in `ps aux | grep "[X]code" |grep -v bash | awk -F " " '{print $2}'`; do
     kill -9 $pid
 done
 
