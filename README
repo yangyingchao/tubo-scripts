@@ -1,12 +1,19 @@
-Collection of scripts, contents:
-
-|-- README:                             this file.
+.
+|-- README
 |-- bash
-|   `-- pkg_pack.sh                     packet package.
+|   |-- CopyFolder.sh
+|   |-- killbill
+|   `-- pkg_pack.sh
 `-- python
-    |-- devhelp2_gen.py                 Scan directory to generate devhelp2 files.
-    |-- down_from_page.py               Download all links of a web page.
-    |-- split.py                        Split large text file into small ones.
-    |-- sub_adj.py                      Adjust subtitle of movie.
-    `-- web_scratch.py                  Download all links of a web page, and replace links to local files.
+    |-- #a.ext#
+    |-- #a.txt#
+    |-- AutoTags.py
+    |-- HexColorDecoder.py
+    |-- a.txt
+    |-- devhelp2_gen.py
+    |-- down_from_page.py
+    |-- split.py
+    |-- sub_adj.py
+    `-- web_scratch.py
 
+2 directories, 14 files

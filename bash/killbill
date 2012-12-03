@@ -1,4 +1,3 @@
 #!/bin/bash
-for fn in $(ps aux | grep "C:"|grep -v grep | awk -F " " '{print $2}' ); do
-    kill $fn;
-    done
+ps aux | grep C: | awk -F " " '{print $2}' | xargs kill -9
+ps aux | grep wine | awk -F " " '{print $2}' | xargs kill -9
