@@ -62,7 +62,7 @@
 (setq o-table (make-hash-table :test 'o-hash :size 64))
 
 (defun o-board-init ()
-  "Initialize play board"
+  "Initialize play board, for test."
   (o-loop-for-size nil
    (puthash (cons i j) nil o-table))
 
