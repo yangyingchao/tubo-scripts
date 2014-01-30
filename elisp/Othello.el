@@ -3,7 +3,7 @@
 ;;; File: test.el
 ;;; Author: YangYingchao <yangyingchao@gmail.com>
 ;;;
-;;; Time-stamp: <2014-01-29 by Yang,Ying-chao>
+;;; Time-stamp: <2014-01-30 by Yang,Ying-chao>
 ;;;
 ;;;
 ;;;
@@ -12,7 +12,8 @@
 
 (defconst o-size 8 "size of board")
 (defconst o-steps
-  (list (cons 1 1) (cons 1 -1) (cons -1 -1) (cons -1 1))
+  (list (cons 0 1) (cons 1 0) (cons 0 -1) (cons -1 0)
+        (cons 1 1) (cons 1 -1) (cons -1 -1) (cons -1 1))
   "Descriptions."
   )
 
@@ -94,6 +95,31 @@
        (t (insert ".")))
      (insert " "))))
 
+(defvar o-current-strategy 'o-strategy-max-disc
+  "Current strategy used by this resolver.")
+
+(defun o-strategy-max-disc (pos table)
+  "Maximum Disc strategy."
+  (let ((tx 0)
+        (cc (gethash c-pos o-table))
+         step)
+  (when (not cc)
+    (dolist  (step o-steps)
+      (let* ((n-pos (o-pos+ c-pos step))
+             (nc (gethash n-pos o-table)))
+        (while (and nc (not (equal nc c)))
+          (setq n-pos (o-pos+ n-pos step)
+                nc (gethash n-pos o-table)))
+        (when (equal nc c)
+          (setq tx (+ tx (o-distance n-pos c-pos)))))))
+  tx))
+
+(defun o-evaluate-postion (pos table &optional depth)
+  "Evaluate given position
+Depth not supported for now."
+  (let ((func (if o-current-strategy o-current-strategy 'o-strategy-max-disc)))
+    (funcall o-current-strategy pos table)))
+
 (defun o-get-best-step (c &optional depth)
   "get next best stop for color c.
 It uses Maximum Disc Strategy which is very bad...
@@ -104,19 +130,9 @@ depth is not supported for now."
         fn)
     (o-loop-for-size
      nil
-     (setq tx 0)
+
      (setq c-pos (cons i j))
-     (setq cc (gethash c-pos o-table))
-     (when (not cc)
-       (dolist  (step o-steps)
-         (let* ((n-pos (o-pos+ c-pos step))
-                (nc (gethash n-pos o-table)))
-           (while (and nc (not (equal nc c)))
-             (setq n-pos (o-pos+ n-pos step)
-                   nc (gethash n-pos o-table)))
-           (when (equal nc c)
-             (setq tx (+ tx (o-distance n-pos c-pos)))))))
-     (when (> tx mx)
+     (when (> (setq tx (o-evaluate-postion c-pos o-table 0)) mx)
        (message "Updating max: (%s)%d -- (%s)%d"
                 (o-str-pos c-pos) tx
                 (o-str-pos fn)  mx)
@@ -127,7 +143,7 @@ depth is not supported for now."
 (progn
   (o-board-init)
   (o-board-draw)
-  (print (o-get-best-step 'w))
+  (print (o-get-best-step 'w) (get-buffer "*test*"))
   )
 
 ;;;;; test.el ends here
