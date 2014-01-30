@@ -119,8 +119,7 @@ Just find the first possible persition."
      (let* ((n-pos (cons i j))
             (tx (o-evaluate-postion c n-pos table)))
        (if (> tx 0)
-           (throw 'TAG n-pos))))
-    TAG))
+           (throw 'TAG n-pos) nil)))))
 
 (defun o-strategy-max-disc (c table depth)
   "Maximum Disc strategy."
@@ -206,19 +205,25 @@ depth is not supported for now."
         (o-board-draw)
         (setq c (if (eq c 'b) 'w 'b))))
     (if (not stop)
-        (setq o-global-timer (run-at-time "1 sec" nil 'o-thello-self-play c))
+        (setq o-global-timer (run-at-time "0.001 sec" nil 'o-thello-self-play c))
 
       ;; Last step, cancel timer and calculate statistics.
+      (message "STOP!!!!!")
       (if o-global-timer
           (cancel-timer o-global-timer))
+      (othello-print-result))))
 
-      (let* ((res (o-calculate-result))
-             (ws (car res))
-             (bs (cdr res)))
-        (message "Black: %d, White: %d, %s!"
-                 bs ws (if (= ws bs)
-                           "Draw"
-                         (if (> ws bs) "White wins" "Black wins")))))))
+(defun othello-print-result ()
+  "Print result"
+  (interactive)
+  (message "Calculating results...")
+  (let* ((res (o-calculate-result))
+         (ws (car res))
+         (bs (cdr res)))
+    (message "Black: %d, White: %d, %s!"
+             bs ws (if (= ws bs)
+                       "Draw"
+                     (if (> ws bs) "White wins" "Black wins")))))
 
 (defun othello-start (&optional sz)
   "Start othello game"
