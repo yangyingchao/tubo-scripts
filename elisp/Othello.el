@@ -101,17 +101,17 @@
 (defun o-strategy-max-disc (pos table)
   "Maximum Disc strategy."
   (let ((tx 0)
-        (cc (gethash c-pos o-table))
+        (cc (gethash pos o-table))
          step)
   (when (not cc)
     (dolist  (step o-steps)
-      (let* ((n-pos (o-pos+ c-pos step))
+      (let* ((n-pos (o-pos+ pos step))
              (nc (gethash n-pos o-table)))
         (while (and nc (not (equal nc c)))
           (setq n-pos (o-pos+ n-pos step)
                 nc (gethash n-pos o-table)))
         (when (equal nc c)
-          (setq tx (+ tx (o-distance n-pos c-pos)))))))
+          (setq tx (+ tx (o-distance n-pos pos)))))))
   tx))
 
 (defun o-evaluate-postion (pos table &optional depth)
@@ -126,8 +126,8 @@ It uses Maximum Disc Strategy which is very bad...
 depth is not supported for now."
   (let ((mx 0)
         (tx 0)
-        c-pos cc
-        fn)
+        c-pos
+        f-pos)
     (o-loop-for-size
      nil
 
@@ -135,10 +135,10 @@ depth is not supported for now."
      (when (> (setq tx (o-evaluate-postion c-pos o-table 0)) mx)
        (message "Updating max: (%s)%d -- (%s)%d"
                 (o-str-pos c-pos) tx
-                (o-str-pos fn)  mx)
+                (o-str-pos f-pos)  mx)
        (setq mx tx
-             fn c-pos)))
-    fn))
+             f-pos c-pos)))
+    f-pos))
 
 (progn
   (o-board-init)
