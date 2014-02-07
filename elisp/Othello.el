@@ -208,6 +208,87 @@ It simple get a list of possible positions and check data base to get its weight
     ;; (message "Pos: %s, weight: %d" (o-str-pos f-pos) f-weight)
     f-pos))
 
+(defun o-get-potential-plist (c table)
+  (let ((tx 0)
+        c-pos
+        pos-list)
+    (o-loop-for-size
+     nil
+     (setq c-pos (cons i j)
+           tx (o-evaluate-postion c c-pos (copy-hash-table o-table)))
+     (if (> tx 0)
+         (setq pos-list (cons (cons c-pos tx) pos-list))))
+    pos-list))
+
+(defmacro oc-rev (c)
+  "get reverse color"
+  `(if (eq ,c 'b) 'w 'b))
+
+(defun o-min (c table depth)
+  (message "o-min called with: %s, depth: %d" (symbol-name c) depth)
+  (let ((f-pos-list (o-get-potential-plist c table))
+        (mx most-negative-fixnum)
+        f-pos)
+    (message "Length of pos-list: %d" (length f-pos-list))
+    (dolist (ppos f-pos-list)
+      (print ppos)
+      (let* ((tbl (copy-hash-table table))
+             (pos (car ppos))
+             (val (cdr ppos))
+             mv)
+        (o-update-board pos c tbl)
+        (if (= depth 0)
+            (if (> val mx)
+                (setq mx val f-pos pos))
+
+          (setq mv (o-max (oc-rev c) tbl depth))
+          (message "MV:1")
+          (print mv)
+          (if (< (cdr mv) mx)
+              (setq mx (cdr mv)
+                    f-pos (car mv))))
+
+        (message "min:::")
+        (print f-pos)
+        (print mx)
+        (message "o-min: %s - %d" (o-str-pos f-pos) mx)
+
+        (cons f-pos mx)))))
+
+(defun o-max (c table depth)
+  (message "o-max called with: %s, depth: %d" (symbol-name c) depth)
+  (let ((f-pos-list (o-get-potential-plist c table))
+        (mx most-negative-fixnum)
+        f-pos)
+    (message "Length of pos-list: %d" (length f-pos-list))
+    (setq depth (if (> depth 0) (1- depth) 0))
+    (dolist (ppos f-pos-list)
+      (print ppos)
+      (let* ((tbl (copy-hash-table table))
+             (pos (car ppos))
+             (val (cdr ppos))
+             mv)
+        (o-update-board pos c tbl)
+        (if (= depth 0)
+            (if (> val mx)
+                (setq mx val f-pos pos))
+
+          (setq mv (o-min (oc-rev c) tbl depth))
+          (message "MV:")
+          (print mv)
+          (if (> (cdr mv) mx)
+              (setq mx (cdr mv)
+                    f-pos (car mv))))
+        (message "A")
+        (print f-pos)
+        (print mx)
+        (message "o-max: %s - %d" (o-str-pos f-pos) mx)
+        (cons f-pos mx)))))
+
+(defun o-strategy-minimax (c table depth)
+  "AI using minmax algorithm"
+  (o-max c table depth))
+
 ;;;  Strategies ends here.
 
 (defun o-get-best-step (c &optional o-strategy &optional depth)
@@ -219,28 +300,29 @@ depth is not supported for now."
              (if depth depth 0))))
 
 
-(defun o-update-board (pos c)
+(defun o-update-board (pos c &optional table)
   "Update current board"
   ;; Check if disc can be put in this position.
-  (let (step n-pos)
-    (puthash pos c o-table)
+  (let ((tbl (if table table o-table))
+        step n-pos)
+    (puthash pos c tbl)
     (o-loop-for-size
      nil
      (dolist  (step o-steps)
        (let* ((n-pos (o-pos+ pos step))
-              (nc (gethash n-pos o-table)))
+              (nc (gethash n-pos tbl)))
          ;; Loop to check if can reverse.
          (while (and nc (not (equal nc c)))
            (setq n-pos (o-pos+ n-pos step)
-                 nc (gethash n-pos o-table)))
+                 nc (gethash n-pos tbl)))
          (when (equal nc c)
            ;; do update.
            (setq n-pos (o-pos+ pos step)
-                 nc (gethash n-pos o-table))
+                 nc (gethash n-pos tbl))
            (while (and nc (not (equal nc c)))
-             (puthash n-pos c o-table)
+             (puthash n-pos c tbl)
              (setq n-pos (o-pos+ n-pos step)
-                   nc (gethash n-pos o-table)))))))))
+                   nc (gethash n-pos tbl)))))))))
 
 (defvar o-global-timer nil "nil")
 (defvar o-logs "" "nil")
@@ -256,14 +338,15 @@ depth is not supported for now."
        ('w (setq ws (1+ ws)))))
     (cons ws bs)))
 
-(defun o-thello-self-play (c)
-  "Function called by timer to play with itself"
+(defun o-thello-self-play (c &optional i)
+  "Function called by timer to play with itself, always returns next color"
   (defun o-self-get-next-step (c)
     "description"
     (o-get-best-step c
                      (if (equal c 'b)
                          'o-strategy-max-disc ;; Black uses max-disc
-                       'o-strategy-ai-1)))  ;; white uses simple.
+                       'o-strategy-minimax)  ;; white uses simple.
+                     1))
   (let (pos stop)
     (if (not c) (setq stop t)
       (setq pos (o-self-get-next-step c))
@@ -275,7 +358,7 @@ depth is not supported for now."
 
       (if (not pos)
           (let* ((tc (if (eq c 'b) 'w 'b))
-                 (tpos (o-strategy-simple tc  (copy-hash-table o-table) 0)))
+                 (tpos (o-strategy-simple tc  (copy-hash-table o-table) 1)))
             (message "No place to drop: %s, trying to skip ..." (symbol-name c))
             (if tpos
                 (setq c (if (eq c 'b) 'w 'b))
@@ -285,18 +368,40 @@ depth is not supported for now."
         (o-board-draw)
         (setq c (if (eq c 'b) 'w 'b))))
 
-    (if (not stop)
-        (setq o-global-timer (run-at-time "0.0001 sec" nil 'o-thello-self-play c))
+    (when (not i)
+      (if (not stop)
+          (setq o-global-timer (run-at-time "0.0001 sec" nil 'o-thello-self-play c))
 
-      ;; Last step, cancel timer and calculate statistics.
-      (if o-global-timer
-          (cancel-timer o-global-timer))
-      (save-ai-1-db (othello-print-result))
-      (when (< (hash-table-count o-table) (* o-size o-size))
-        (with-current-buffer (get-buffer "*Othello*")
+        ;; Last step, cancel timer and calculate statistics.
+        (if o-global-timer
+            (cancel-timer o-global-timer))
+        (save-ai-1-db (othello-print-result))
+        (when (< (hash-table-count o-table) (* o-size o-size))
+          (with-current-buffer (get-buffer "*Othello*")
             (rename-buffer (format "*Othello-%s*"
                                    (format-time-string "%s" (current-time))))))
-      (setq o-global-timer (run-at-time "2 sec" nil 'othello-start o-size)))))
+        (setq o-global-timer (run-at-time "2 sec" nil 'othello-start o-size))))
+    c))
+
+(defvar o-cur-col nil "nil")
+(defun othello-next ()
+  "description"
+  (interactive)
+  (when (not o-cur-col)
+      (setq o-cur-col 'b)
+      (setq o-size 8)
+      (if o-global-timer
+          (cancel-timer o-global-timer))
+      (with-current-buffer (get-buffer-create "*Othello*")
+        (set-window-buffer (get-buffer-window)  (current-buffer)))
+      (o-board-init)
+      (o-board-draw))
+  (setq o-cur-col (o-thello-self-play o-cur-col t)))
+
+(defun othello-reset ()
+  "description"
+  (interactive)
+  (setq o-cur-col nil))
 
 (defun othello-print-result ()
   "Print result, returns t if w wins"
