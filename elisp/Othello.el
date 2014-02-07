@@ -224,69 +224,29 @@ It simple get a list of possible positions and check data base to get its weight
   "get reverse color"
   `(if (eq ,c 'b) 'w 'b))
 
-(defun o-min (c table depth)
-  (message "o-min called with: %s, depth: %d" (symbol-name c) depth)
-  (let ((f-pos-list (o-get-potential-plist c table))
-        (mx most-negative-fixnum)
-        f-pos)
-    (message "Length of pos-list: %d" (length f-pos-list))
-    (dolist (ppos f-pos-list)
-      (print ppos)
-      (let* ((tbl (copy-hash-table table))
-             (pos (car ppos))
-             (val (cdr ppos))
-             mv)
-        (o-update-board pos c tbl)
-        (if (= depth 0)
-            (if (> val mx)
-                (setq mx val f-pos pos))
-
-          (setq mv (o-max (oc-rev c) tbl depth))
-          (message "MV:1")
-          (print mv)
-          (if (< (cdr mv) mx)
-              (setq mx (cdr mv)
-                    f-pos (car mv))))
-
-        (message "min:::")
-        (print f-pos)
-        (print mx)
-        (message "o-min: %s - %d" (o-str-pos f-pos) mx)
-
-        (cons f-pos mx)))))
-
-(defun o-max (c table depth)
-  (message "o-max called with: %s, depth: %d" (symbol-name c) depth)
-  (let ((f-pos-list (o-get-potential-plist c table))
-        (mx most-negative-fixnum)
-        f-pos)
-    (message "Length of pos-list: %d" (length f-pos-list))
-    (setq depth (if (> depth 0) (1- depth) 0))
-    (dolist (ppos f-pos-list)
-      (print ppos)
-      (let* ((tbl (copy-hash-table table))
-             (pos (car ppos))
-             (val (cdr ppos))
-             mv)
-        (o-update-board pos c tbl)
-        (if (= depth 0)
-            (if (> val mx)
-                (setq mx val f-pos pos))
-
-          (setq mv (o-min (oc-rev c) tbl depth))
-          (message "MV:")
-          (print mv)
-          (if (> (cdr mv) mx)
-              (setq mx (cdr mv)
-                    f-pos (car mv))))
-        (message "A")
-        (print f-pos)
-        (print mx)
-        (message "o-max: %s - %d" (o-str-pos f-pos) mx)
-        (cons f-pos mx)))))
 
 (defun o-strategy-minimax (c table depth)
   "AI using minmax algorithm"
+  ;;   function minimax(node, depth, maximizingPlayer)
+  ;;     if depth = 0 or node is a terminal node
+  ;;         return the heuristic value of node
+  ;;     if maximizingPlayer
+  ;;         bestValue := -∞
+  ;;         for each child of node
+  ;;             val := minimax(child, depth - 1, FALSE))
+  ;;             bestValue := max(bestValue, val);
+  ;;         return bestValue
+  ;;     else
+  ;;         bestValue := +∞
+  ;;         for each child of node
+  ;;             val := minimax(child, depth - 1, TRUE))
+  ;;             bestValue := min(bestValue, val);
+  ;;         return bestValue
+
+  ;; (* Initial call for maximizing player *)
+  minimax(origin, depth, TRUE)
+  minimax(origin, depth, TRUE)
+
   (o-max c table depth))
 
 ;;;  Strategies ends here.
