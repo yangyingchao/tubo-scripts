@@ -3,10 +3,11 @@
 ;;; File: test.el
 ;;; Author: YangYingchao <yangyingchao@gmail.com>
 ;;;
-;;; Time-stamp: <2014-02-05 by Yang,Ying-chao>
+;;; Time-stamp: <2014-02-07 by Yang,Ying-chao>
 ;;;
 ;;;
 ;;;
+(require 'cl)
 
 (defvar o-size 8 "size of board")
 
@@ -56,9 +57,7 @@
 
 (defun o-board-init ()
   "Initialize play board, for test."
-  (o-loop-for-size nil
-                   (puthash (cons i j) nil o-table))
-
+  (clrhash o-table)
   (puthash (cons 3 3) 'b o-table)
   (puthash (cons 3 4) 'w o-table)
   (puthash (cons 4 3) 'w o-table)
@@ -129,14 +128,19 @@ Just find the first possible persition."
         f-pos)
     (o-loop-for-size
      nil
-     (setq c-pos (cons i j))
-     (when (> (setq tx (o-evaluate-postion c c-pos (copy-hash-table o-table))) mx)
-       (message "Updating max: (%s)%d -- (%s)%d"
-                (o-str-pos c-pos) tx
-                (o-str-pos f-pos)  mx)
-       (setq mx tx
-             f-pos c-pos)))
-    f-pos))
+     (setq c-pos (cons i j)
+           tx (o-evaluate-postion c c-pos (copy-hash-table o-table)))
+     (if (< tx mx)
+         nil ;; skip this postion.
+       (when (> tx 0)
+         (when (> tx mx)
+           ;; (message "Updating max: (%s)%d -- (%s)%d"
+           ;;          (o-str-pos c-pos) tx
+           ;;          (o-str-pos (car f-pos))  mx)
+           (setq mx tx
+                 f-pos nil))
+         (setq f-pos (cons c-pos f-pos)))))
+    (nth (random (length f-pos)) f-pos)))
 
 (defun o-generate-postion-weight ()
   (let* ((tbl (make-hash-table :test 'o-hash :size 64))
@@ -162,7 +166,7 @@ Just find the first possible persition."
   "Load db for ai-1"
   (setq o-ai-1-pos-list  nil)
   (setq o-ai-1-db
-        (if (not (file-exists-p "Othello-AI-1.el"))
+        (if (not (file-exists-p "~/Work/tubo-scripts/elisp/Othello-AI-1.el"))
             (o-generate-postion-weight)
           (with-temp-file (make-temp-file "Othello-AI-1")
             (insert-file-contents "Othello-AI-1.el")
@@ -171,7 +175,7 @@ Just find the first possible persition."
 (defun save-ai-1-db (win)
   "description"
   (merge-ai-1-db win)
-  (with-temp-file  "Othello-AI-1.el"
+  (with-temp-file  "~/Work/tubo-scripts/elisp/Othello-AI-1.el"
     (erase-buffer)
     (print o-ai-1-db (current-buffer))))
 
@@ -201,7 +205,7 @@ It simple get a list of possible positions and check data base to get its weight
          (setq f-weight c-weight
                f-pos c-pos)
          (add-to-list 'o-ai-1-pos-list f-pos))))
-    (message "Pos: %s, weight: %d" (o-str-pos f-pos) f-weight)
+    ;; (message "Pos: %s, weight: %d" (o-str-pos f-pos) f-weight)
     f-pos))
 
 ;;;  Strategies ends here.
@@ -211,7 +215,8 @@ It simple get a list of possible positions and check data base to get its weight
 It uses Maximum Disc Strategy which is very bad...
 depth is not supported for now."
   (let ((strategy (if o-strategy o-strategy 'o-strategy-simple)))
-    (funcall strategy c (copy-hash-table o-table) 0)))
+    (funcall strategy c (copy-hash-table o-table)
+             (if depth depth 0))))
 
 
 (defun o-update-board (pos c)
@@ -268,30 +273,30 @@ depth is not supported for now."
                     o-logs))
       (setq o-index (1+ o-index))
 
+      (if (not pos)
+          (let* ((tc (if (eq c 'b) 'w 'b))
+                 (tpos (o-strategy-simple tc  (copy-hash-table o-table) 0)))
+            (message "No place to drop: %s, trying to skip ..." (symbol-name c))
+            (if tpos
+                (setq c (if (eq c 'b) 'w 'b))
+              (message "No place to drop for color: %s" (symbol-name tc))
+              (setq stop t)))
+        (o-update-board pos c)
+        (o-board-draw)
+        (setq c (if (eq c 'b) 'w 'b))))
 
-      (if pos
-          (progn
-            (o-update-board pos c)
-            (o-board-draw)
-            (setq c (if (eq c 'b) 'w 'b)))
-        (setq c (if (eq c 'b) 'w 'b))
-        (if (o-self-get-next-step c)
-            nil
-          (setq stop t)))
-      ;; (if (not pos)
-      ;;     (setq stop t)
-      ;;   (o-update-board pos c)
-      ;;   (o-board-draw)
-      ;;   (setq c (if (eq c 'b) 'w 'b)))
-      )
     (if (not stop)
-        (setq o-global-timer (run-at-time "0.001 sec" nil 'o-thello-self-play c))
+        (setq o-global-timer (run-at-time "0.0001 sec" nil 'o-thello-self-play c))
 
       ;; Last step, cancel timer and calculate statistics.
-      (message "STOP!!!!!")
       (if o-global-timer
           (cancel-timer o-global-timer))
-      (save-ai-1-db (othello-print-result)))))
+      (save-ai-1-db (othello-print-result))
+      (when (< (hash-table-count o-table) (* o-size o-size))
+        (with-current-buffer (get-buffer "*Othello*")
+            (rename-buffer (format "*Othello-%s*"
+                                   (format-time-string "%s" (current-time))))))
+      (setq o-global-timer (run-at-time "2 sec" nil 'othello-start o-size)))))
 
 (defun othello-print-result ()
   "Print result, returns t if w wins"
@@ -320,5 +325,13 @@ depth is not supported for now."
   (o-board-init)
   (o-board-draw)
   (o-thello-self-play 'b))
+
+(defun othello-stop ()
+  "description"
+  (interactive)
+  (if o-global-timer
+      (cancel-timer o-global-timer))
+  ;; (save-ai-1-db (othello-print-result))
+  )
 
 ;;;;; test.el ends here
