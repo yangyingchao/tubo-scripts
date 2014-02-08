@@ -3,7 +3,7 @@
 ;;; File: test.el
 ;;; Author: YangYingchao <yangyingchao@gmail.com>
 ;;;
-;;; Time-stamp: <2014-02-07 by Yang,Ying-chao>
+;;; Time-stamp: <2014-02-08 by Yang,Ying-chao>
 ;;;
 ;;;
 ;;;
@@ -185,11 +185,23 @@ Just find the first possible persition."
     (dolist (pos o-ai-1-pos-list)
       (puthash pos (+ val (gethash pos o-ai-1-db)) o-ai-1-db))))
 
+(defun o-select-pos-ai-1 (f-list)
+  (if f-list
+      (let ((f-weight most-negative-fixnum)
+            c-weight f-pos)
+
+        (if (not o-ai-1-db)
+            (load-ai-1-db))
+
+        (dolist (c-pos f-list)
+          (when (> (setq c-weight (gethash c-pos o-ai-1-db)) f-weight)
+            (setq f-weight c-weight
+                  f-pos c-pos)))
+        f-pos)))
 (defun o-strategy-ai-1 (c table depth)
   "AI-1
 It simple get a list of possible positions and check data base to get its weight"
-  (if (not o-ai-1-db)
-      (load-ai-1-db))
+
   (let ((tx 0)
         (c-weight 0)
         (f-weight most-negative-fixnum)
@@ -224,30 +236,63 @@ It simple get a list of possible positions and check data base to get its weight
   "get reverse color"
   `(if (eq ,c 'b) 'w 'b))
 
+(defmacro o-get-gain (c res)
+  ""
+  `(if (eq ,c 'b) (cdr ,res) (car ,res)))
+
+
+(defun o-minimax (pos c table depth maximizing)
+  "
+    function minimax(node, depth, maximizingPlayer)
+      if depth = 0 or node is a terminal node
+          return the heuristic value of node
+      if maximizingPlayer
+          bestValue := -∞
+          for each child of node
+              val := minimax(child, depth - 1, FALSE))
+              bestValue := max(bestValue, val);
+          return bestValue
+      else
+          bestValue := +∞
+          for each child of node
+              val := minimax(child, depth - 1, TRUE))
+              bestValue := min(bestValue, val);
+          return bestValue
+"
+  (let* ((tbl (copy-hash-table table))
+         (res (o-update-board pos c tbl))
+         (bv (o-get-gain c res)))
+    (if (= depth 0)
+        bv
+      (if maximizing
+          (let ()
+            (setq bv most-negative-fixnum)
+
+            )
+        (let ( )
+
+          )
+          )
+        )
+    )
+
+  )
 
 (defun o-strategy-minimax (c table depth)
   "AI using minmax algorithm"
-  ;;   function minimax(node, depth, maximizingPlayer)
-  ;;     if depth = 0 or node is a terminal node
-  ;;         return the heuristic value of node
-  ;;     if maximizingPlayer
-  ;;         bestValue := -∞
-  ;;         for each child of node
-  ;;             val := minimax(child, depth - 1, FALSE))
-  ;;             bestValue := max(bestValue, val);
-  ;;         return bestValue
-  ;;     else
-  ;;         bestValue := +∞
-  ;;         for each child of node
-  ;;             val := minimax(child, depth - 1, TRUE))
-  ;;             bestValue := min(bestValue, val);
-  ;;         return bestValue
-
-  ;; (* Initial call for maximizing player *)
-  minimax(origin, depth, TRUE)
-  minimax(origin, depth, TRUE)
-
-  (o-max c table depth))
+  (let ((plist (o-get-potential-plist c table))
+        (bv most-negative-fixnum)
+        f-list tv)
+    (dolist (ppos plist)
+      (let* ((pos (car ppos))
+             (tv (o-minimax pos c table depth t)))
+        (if (< tv bv)
+            nil
+          (if (> tv bv)
+              (setq f-list nil))
+          (setq f-list (cons pos f-list)))))
+    ;; Common minimax ended here, apply our experience database to it.
+    (o-select-pos-ai-1 f-list)))
 
 ;;;  Strategies ends here.
 
@@ -282,18 +327,20 @@ depth is not supported for now."
            (while (and nc (not (equal nc c)))
              (puthash n-pos c tbl)
              (setq n-pos (o-pos+ n-pos step)
-                   nc (gethash n-pos tbl)))))))))
+                   nc (gethash n-pos tbl)))))))
+    (cons (o-calculate-result tbl) tbl)))
 
 (defvar o-global-timer nil "nil")
 (defvar o-logs "" "nil")
 (defvar o-index 0 "nil")
 
-(defun o-calculate-result ()
+(defun o-calculate-result (&optional table)
   "description"
-  (let ((ws 0) (bs 0 ))
+  (let ((ws 0) (bs 0 )
+        (tbl (if table table o-table)))
     (o-loop-for-size
      nil
-     (cl-case (gethash (cons i j) o-table)
+     (cl-case (gethash (cons i j) tbl)
        ('b (setq bs (1+ bs)))
        ('w (setq ws (1+ ws)))))
     (cons ws bs)))
