@@ -222,12 +222,13 @@ It simple get a list of possible positions and check data base to get its weight
 
 (defun o-get-potential-plist (c table)
   (let ((tx 0)
+        (tbl (if table table o-table))
         c-pos
         pos-list)
     (o-loop-for-size
      nil
      (setq c-pos (cons i j)
-           tx (o-evaluate-postion c c-pos (copy-hash-table o-table)))
+           tx (o-evaluate-postion c c-pos (copy-hash-table tbl)))
      (if (> tx 0)
          (setq pos-list (cons (cons c-pos tx) pos-list))))
     pos-list))
@@ -242,7 +243,7 @@ It simple get a list of possible positions and check data base to get its weight
 
 
 (defun o-minimax (pos c table depth maximizing)
-  "
+  "Pseudo code
     function minimax(node, depth, maximizingPlayer)
       if depth = 0 or node is a terminal node
           return the heuristic value of node
@@ -259,38 +260,45 @@ It simple get a list of possible positions and check data base to get its weight
               bestValue := min(bestValue, val);
           return bestValue
 "
+  ;; (message "o-minimax enter: Depth: %d" depth )
+  ;; (print (list pos c depth maximizing))
   (let* ((tbl (copy-hash-table table))
          (res (o-update-board pos c tbl))
-         (bv (o-get-gain c res)))
-    (if (= depth 0)
-        bv
-      (if maximizing
-          (let ()
-            (setq bv most-negative-fixnum)
-
-            )
-        (let ( )
-
-          )
-          )
-        )
-    )
-
-  )
+         (tbl (cdr res))
+         (bv (o-get-gain c (car res)))
+         (nc (oc-rev c))
+         (n-pos-list (o-get-potential-plist nc tbl))
+         (cmp-fun (if maximizing '> '<)))
+    (when (and (> depth 0)
+               n-pos-list)
+      (setq bv (if maximizing most-negative-fixnum most-positive-fixnum)
+            depth (1- depth))
+      (dolist (npos n-pos-list)
+        (let ((tv (o-minimax (car npos) nc tbl depth  (not maximizing))))
+          (when (funcall cmp-fun tv bv)
+            (setq bv tv)))))
+    ;; (message "o-minimax leave: %s -- Best Value: %d" (o-str-pos pos) bv)
+    bv))
 
 (defun o-strategy-minimax (c table depth)
   "AI using minmax algorithm"
+  ;; (message "o-strategy-minimax enter: color: %s depth: %d" (symbol-name c) depth)
   (let ((plist (o-get-potential-plist c table))
         (bv most-negative-fixnum)
         f-list tv)
     (dolist (ppos plist)
       (let* ((pos (car ppos))
              (tv (o-minimax pos c table depth t)))
+        ;; (message "Pos: %s, tv: %d, bv: %d" (o-str-pos pos) tv bv)
         (if (< tv bv)
             nil
-          (if (> tv bv)
-              (setq f-list nil))
+          (when (> tv bv)
+            ;; (message "Updating bv from: %d to %d, pos: %s" bv tv (o-str-pos pos))
+            (setq f-list nil
+                  bv tv))
           (setq f-list (cons pos f-list)))))
+    (message "o-strategy-minimax: bv: %d f-lists(%d): %s"
+             bv (length f-list) (mapconcat 'o-str-pos f-list " -- "))
     ;; Common minimax ended here, apply our experience database to it.
     (o-select-pos-ai-1 f-list)))
 
@@ -351,9 +359,9 @@ depth is not supported for now."
     "description"
     (o-get-best-step c
                      (if (equal c 'b)
-                         'o-strategy-max-disc ;; Black uses max-disc
+                         'o-strategy-ai-1 ;; Black uses max-disc
                        'o-strategy-minimax)  ;; white uses simple.
-                     1))
+                     3))
   (let (pos stop)
     (if (not c) (setq stop t)
       (setq pos (o-self-get-next-step c))
