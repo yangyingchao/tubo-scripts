@@ -37,8 +37,31 @@ void usage(const char* exec)
     } while(0)
 #endif  /*End of if PDEBUG*/
 
+#define K       (1 << 10)
+#define M       (1 << 20)
+#define G       (1 << 30)
+#define T       (1 << 40)
 
-int file_enlarge(int in_fd, int num)
+const char *stringify_size(size_t sz)
+{
+    static char str_size[64] = { '\0' };
+    memset(str_size, 0, 64);
+
+    if (sz < K) {
+        sprintf(str_size, "%zu", sz);
+    }
+    else if (sz < M) {
+        sprintf(str_size, "%.02fK", (double) sz / K);
+    } else if (sz < G) {
+        sprintf(str_size, "%.02fM", (double) sz / M);
+    } else {
+        sprintf(str_size, "%.02fG", (double) sz / G);
+    }
+
+    return str_size;
+}
+
+size_t file_enlarge(int in_fd, int num)
 {
     struct stat st;
     if (fstat(in_fd, &st) == -1) {
@@ -67,7 +90,7 @@ int file_enlarge(int in_fd, int num)
     return dst - (char*)addr;
 }
 
-int copy_file(int in_fd, const char* out_file, int num)
+size_t copy_file(int in_fd, const char* out_file, int num)
 {
     struct stat st;
     if (fstat(in_fd, &st) == -1) {
@@ -79,9 +102,8 @@ int copy_file(int in_fd, const char* out_file, int num)
         handle_error("Failed to open output file");
     }
 
-    int total = 0;
+    size_t total = 0;
     while (num-- > 0) {
-        PDEBUG ("num: %d\n", num);
         size_t copied = 0;
         if ((copied = sendfile(ofd, in_fd, NULL, st.st_size)) == -1) {
             close(ofd);
@@ -98,7 +120,8 @@ int copy_file(int in_fd, const char* out_file, int num)
 
 int main(int argc, char *argv[])
 {
-    int opt, in_fd, num = 1, ret = 1;
+    int opt, in_fd, num = 1;
+    size_t total;
 
     if (argc < 2) {
         USAGE();
@@ -131,20 +154,21 @@ int main(int argc, char *argv[])
     }
 
     if (optind + 1 >= argc) { // out_file not specified.
-        ret = file_enlarge(in_fd, num);
+        total = file_enlarge(in_fd, num);
     }
     else {
-        ret = copy_file(in_fd, argv[optind+1], num);
+        total = copy_file(in_fd, argv[optind+1], num);
     }
 
     close(in_fd);
 
-    if (ret > 0) {
-        printf ("Operation succeeded, %d bytes copied.\n", ret);
+    if (total) {
+        printf ("Operation succeeded, %s bytes copied.\n", stringify_size(total));
+        return 0;
     }
     else {
         printf ("Operation failed.\n");
     }
 
-    return ret;
+    return 1;
 }
