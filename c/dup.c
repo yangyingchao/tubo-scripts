@@ -50,19 +50,21 @@ int file_enlarge(int in_fd, int num)
         handle_error("Failed to truncate file");
     }
 
-    void* addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_PRIVATE, in_fd, 0);
+    void* addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, in_fd, 0);
     if (!addr) {
         handle_error("Failed to mmap()");
     }
 
     int done = 1;
+    char* dst = (char*)addr;
     do {
-        memcpy(((char*)addr) + st.st_size*(done++), addr, st.st_size);
-    } while (done < num);
+        dst += st.st_size;
+        memcpy(dst, addr, st.st_size);
+    } while (done++ < num);
 
     munmap(addr, size);
 
-    return 0;
+    return dst - (char*)addr;
 }
 
 int copy_file(int in_fd, const char* out_file, int num)
@@ -77,18 +79,21 @@ int copy_file(int in_fd, const char* out_file, int num)
         handle_error("Failed to open output file");
     }
 
+    int total = 0;
     while (num-- > 0) {
         PDEBUG ("num: %d\n", num);
-        if (sendfile(ofd, in_fd, NULL, st.st_size) == -1) {
+        size_t copied = 0;
+        if ((copied = sendfile(ofd, in_fd, NULL, st.st_size)) == -1) {
             close(ofd);
             handle_error("Failed to send file..");
         }
         lseek(in_fd, 0, SEEK_SET);
+        total += copied;
     }
 
     close(ofd);
 
-    return 0;
+    return total;
 }
 
 int main(int argc, char *argv[])
@@ -133,5 +138,13 @@ int main(int argc, char *argv[])
     }
 
     close(in_fd);
+
+    if (ret > 0) {
+        printf ("Operation succeeded, %d bytes copied.\n", ret);
+    }
+    else {
+        printf ("Operation failed.\n");
+    }
+
     return ret;
 }
